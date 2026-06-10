@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StudyLog — AI 학습 일기장</title>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg: #0f1117;
+      --bg2: #1a1d27;
+      --bg3: #222636;
+      --border: rgba(255,255,255,0.08);
+      --border2: rgba(255,255,255,0.14);
+      --text: #e8eaf0;
+      --text2: #8b90a7;
+      --text3: #5a5f76;
+      --accent: #7c6df0;
+      --accent2: #a08ff5;
+      --accent-bg: rgba(124,109,240,0.12);
+      --green: #34d399;
+      --green-bg: rgba(52,211,153,0.1);
+      --amber: #fbbf24;
+      --amber-bg: rgba(251,191,36,0.1);
+      --red: #f87171;
+      --red-bg: rgba(248,113,113,0.1);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Pretendard', 'Noto Sans KR', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    /* ── AUTH SCREEN ── */
+    #auth-screen {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .auth-card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: 20px;
+      padding: 3rem 2.5rem;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+    }
+
+    .auth-logo {
+      width: 56px;
+      height: 56px;
+      background: var(--accent-bg);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.5rem;
+      font-size: 26px;
+    }
+
+    .auth-card h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.3px;
+    }
+
+    .auth-card p {
+      color: var(--text2);
+      margin-bottom: 2rem;
+      font-size: 14px;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .input-group input {
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-size: 14px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .input-group input:focus { border-color: var(--accent); }
+    .input-group input::placeholder { color: var(--text3); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      width: 100%;
+    }
+
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+    .btn-primary:active { transform: scale(0.98); }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text2);
+      border: 0.5px solid var(--border2);
+    }
+
+    .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin: 1.25rem 0;
+      color: var(--text3);
+      font-size: 13px;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 0.5px;
+      background: var(--border);
+    }
+
+    .btn-google {
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      color: var(--text);
+      width: 100%;
+      gap: 0.75rem;
+    }
+
+    .btn-google:hover { background: var(--bg); }
+
+    .auth-toggle {
+      margin-top: 1.5rem;
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .auth-toggle a {
+      color: var(--accent2);
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .auth-toggle a:hover { text-decoration: underline; }
+
+    .error-msg {
+      background: var(--red-bg);
+      border: 0.5px solid var(--red);
+      color: var(--red);
+      border-radius: var(--radius-sm);
+      padding: 0.6rem 1rem;
+      font-size: 13px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    /* ── APP LAYOUT ── */
+    #app-screen { display: none; min-height: 100vh; }
+
+    .app-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--bg2);
+      border-right: 0.5px solid var(--border);
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .sidebar-logo .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent-bg);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .sidebar-logo span {
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.2px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text2);
+      transition: all 0.15s;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--bg3); color: var(--text); }
+
+    .nav-item.active {
+      background: var(--accent-bg);
+      color: var(--accent2);
+      font-weight: 500;
+    }
+
+    .nav-icon { font-size: 18px; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding-top: 1rem;
+      border-top: 0.5px solid var(--border);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: var(--radius-sm);
+      margin-bottom: 0.25rem;
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent2);
+      flex-shrink: 0;
+    }
+
+    .user-email {
+      font-size: 12px;
+      color: var(--text2);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+      padding: 2rem 2.5rem;
+      max-width: 860px;
+      width: 100%;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      margin-bottom: 2rem;
+    }
+
+    .page-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 0.3rem;
+    }
+
+    .page-header p {
+      color: var(--text2);
+      font-size: 14px;
+    }
+
+    /* ── WRITE PAGE ── */
+    .write-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text2);
+      margin-bottom: 0.5rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      color: var(--text);
+      font-size: 14px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus { border-color: var(--accent); }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 160px;
+      line-height: 1.7;
+    }
+
+    .form-group select option { background: var(--bg2); }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .btn-submit {
+      background: var(--accent);
+      color: #fff;
+      padding: 0.85rem 2rem;
+      font-size: 15px;
+      font-weight: 600;
+      align-self: flex-start;
+    }
+
+    .btn-submit:hover { background: var(--accent2); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── AI FEEDBACK CARD ── */
+    .feedback-card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .feedback-card h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .feedback-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .feedback-section:last-child { margin-bottom: 0; }
+
+    .feedback-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.5rem;
+    }
+
+    .feedback-text {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.7;
+    }
+
+    .quiz-item {
+      background: var(--bg3);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      font-size: 14px;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid var(--accent);
+      color: var(--text);
+    }
+
+    .tts-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 0.75rem 1rem;
+      margin-top: 1rem;
+    }
+
+    .tts-bar span {
+      font-size: 13px;
+      color: var(--text2);
+      flex: 1;
+    }
+
+    .btn-tts {
+      background: var(--green-bg);
+      border: 0.5px solid var(--green);
+      color: var(--green);
+      padding: 0.4rem 0.9rem;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.15s;
+    }
+
+    .btn-tts:hover { background: rgba(52,211,153,0.2); }
+    .btn-tts.playing { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+
+    .loading-dots {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .loading-dots span {
+      width: 6px;
+      height: 6px;
+      background: var(--accent2);
+      border-radius: 50%;
+      animation: dot-bounce 0.8s infinite;
+    }
+
+    .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes dot-bounce {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── HISTORY PAGE ── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text3);
+      margin-bottom: 0.4rem;
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    .stat-value.accent { color: var(--accent2); }
+    .stat-value.green { color: var(--green); }
+    .stat-value.amber { color: var(--amber); }
+
+    .log-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .log-card {
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .log-card:hover {
+      border-color: var(--border2);
+      background: var(--bg3);
+    }
+
+    .log-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .log-subject {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .log-date {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    .log-preview {
+      font-size: 13px;
+      color: var(--text2);
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .log-tags {
+      display: flex;
+      gap: 0.4rem;
+      margin-top: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .tag-subject {
+      background: var(--accent-bg);
+      color: var(--accent2);
+    }
+
+    .tag-time {
+      background: var(--bg3);
+      color: var(--text3);
+    }
+
+    .tag-mood {
+      background: var(--green-bg);
+      color: var(--green);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text3);
+    }
+
+    .empty-state .emoji { font-size: 48px; margin-bottom: 1rem; }
+    .empty-state p { font-size: 14px; }
+
+    /* ── SETTINGS PAGE ── */
+    .settings-section {
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .settings-section h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 12px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .setting-row:last-child { border-bottom: none; }
+
+    .setting-info h4 { font-size: 14px; font-weight: 500; }
+    .setting-info p { font-size: 13px; color: var(--text2); }
+
+    .setting-input {
+      background: var(--bg3);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem 0.75rem;
+      color: var(--text);
+      font-size: 13px;
+      width: 300px;
+      outline: none;
+    }
+
+    .setting-input:focus { border-color: var(--accent); }
+
+    .btn-save {
+      background: var(--accent);
+      color: #fff;
+      padding: 0.6rem 1.25rem;
+      font-size: 14px;
+    }
+
+    .btn-save:hover { background: var(--accent2); }
+
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: var(--bg2);
+      border: 0.5px solid var(--green);
+      color: var(--green);
+      padding: 0.75rem 1.25rem;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--bg2);
+      border: 0.5px solid var(--border2);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .btn-close {
+      background: var(--bg3);
+      border: none;
+      color: var(--text2);
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .btn-close:hover { background: var(--red-bg); color: var(--red); }
+
+    .modal-meta {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .modal-body-text {
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: pre-wrap;
+      margin-bottom: 1.5rem;
+    }
+
+    .modal-divider {
+      height: 0.5px;
+      background: var(--border);
+      margin: 1.25rem 0;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      .app-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        left: -240px;
+        top: 0;
+        z-index: 50;
+        height: 100vh;
+        transition: left 0.3s;
+      }
+
+      .sidebar.open { left: 0; }
+
+      .main-content { padding: 1.25rem; }
+
+      .form-row { grid-template-columns: 1fr; }
+
+      .stats-row { grid-template-columns: 1fr; }
+
+      .setting-input { width: 100%; }
+
+      .setting-row { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── AUTH SCREEN ── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">📚</div>
+    <h1>StudyLog</h1>
+    <p>AI가 함께하는 나만의 학습 일기장</p>
+
+    <div class="error-msg" id="auth-error"></div>
+
+    <!-- 로그인 폼 -->
+    <div id="login-form">
+      <div class="input-group">
+        <input type="email" id="login-email" placeholder="이메일" autocomplete="email" />
+        <input type="password" id="login-pw" placeholder="비밀번호" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary" onclick="loginEmail()">로그인</button>
+      <div class="divider">또는</div>
+      <button class="btn btn-google" onclick="loginGoogle()">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 6.293C4.672 4.166 6.656 3.58 9 3.58z"/></svg>
+        Google로 계속하기
+      </button>
+      <div class="auth-toggle">계정이 없으신가요? <a onclick="toggleAuthMode('signup')">회원가입</a></div>
+    </div>
+
+    <!-- 회원가입 폼 -->
+    <div id="signup-form" style="display:none">
+      <div class="input-group">
+        <input type="text" id="signup-name" placeholder="이름" autocomplete="name" />
+        <input type="email" id="signup-email" placeholder="이메일" autocomplete="email" />
+        <input type="password" id="signup-pw" placeholder="비밀번호 (6자 이상)" autocomplete="new-password" />
+      </div>
+      <button class="btn btn-primary" onclick="signupEmail()">회원가입</button>
+      <div class="auth-toggle">이미 계정이 있으신가요? <a onclick="toggleAuthMode('login')">로그인</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── APP SCREEN ── -->
+<div id="app-screen">
+  <div class="app-layout">
+
+    <!-- 사이드바 -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">📚</div>
+        <span>StudyLog</span>
+      </div>
+
+      <button class="nav-item active" onclick="showPage('write')" data-page="write">
+        <span class="nav-icon">✏️</span> 오늘 일기 쓰기
+      </button>
+      <button class="nav-item" onclick="showPage('history')" data-page="history">
+        <span class="nav-icon">📋</span> 학습 히스토리
+      </button>
+      <button class="nav-item" onclick="showPage('settings')" data-page="settings">
+        <span class="nav-icon">⚙️</span> 설정
+      </button>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="user-avatar">?</div>
+          <div class="user-email" id="user-email-display">-</div>
+        </div>
+        <button class="nav-item" onclick="logout()">
+          <span class="nav-icon">🚪</span> 로그아웃
+        </button>
+      </div>
+    </nav>
+
+    <!-- 메인 콘텐츠 -->
+    <main class="main-content">
+
+      <!-- 오늘 일기 쓰기 -->
+      <div class="page active" id="page-write">
+        <div class="page-header">
+          <h2>오늘 공부 일기</h2>
+          <p id="today-date"></p>
+        </div>
+
+        <div class="write-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>과목</label>
+              <input type="text" id="subject" placeholder="예: 수학, 영어, 프로그래밍..." />
+            </div>
+            <div class="form-group">
+              <label>공부 시간</label>
+              <select id="study-time">
+                <option value="30분">30분</option>
+                <option value="1시간" selected>1시간</option>
+                <option value="2시간">2시간</option>
+                <option value="3시간">3시간</option>
+                <option value="4시간 이상">4시간 이상</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>오늘 컨디션</label>
+              <select id="mood">
+                <option value="😊 좋음">😊 좋음</option>
+                <option value="😐 보통" selected>😐 보통</option>
+                <option value="😴 피곤함">😴 피곤함</option>
+                <option value="🔥 최고">🔥 최고</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>이해도</label>
+              <select id="understanding">
+                <option value="잘 모르겠음">😅 잘 모르겠음</option>
+                <option value="어느 정도 이해" selected>🤔 어느 정도 이해</option>
+                <option value="잘 이해함">😊 잘 이해함</option>
+                <option value="완벽히 이해">🎯 완벽히 이해</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>오늘 공부한 내용</label>
+            <textarea id="study-content" placeholder="오늘 무엇을 공부했나요? 배운 개념, 풀었던 문제, 어려웠던 점 등을 자유롭게 적어보세요.&#10;&#10;AI가 요약과 피드백, 예상 퀴즈를 만들어드립니다 🤖"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>오늘 목표 달성도</label>
+            <select id="goal-achievement">
+              <option value="달성 못함">❌ 달성 못함</option>
+              <option value="50% 달성">🌗 절반 달성</option>
+              <option value="거의 달성" selected>✅ 거의 달성</option>
+              <option value="완전 달성">🎉 완전 달성</option>
+            </select>
+          </div>
+
+          <button class="btn btn-submit" id="submit-btn" onclick="submitDiary()">
+            🤖 AI 피드백 받기
+          </button>
+        </div>
+
+        <!-- AI 피드백 영역 -->
+        <div class="feedback-card" id="feedback-card" style="display:none">
+          <h3>🤖 AI 학습 피드백</h3>
+
+          <div id="feedback-loading" style="padding: 1.5rem 0; text-align: center;">
+            <div class="loading-dots"><span></span><span></span><span></span></div>
+            <p style="margin-top: 0.75rem; font-size: 13px; color: var(--text2);">AI가 피드백을 생성하고 있어요...</p>
+          </div>
+
+          <div id="feedback-content" style="display:none">
+            <div class="feedback-section">
+              <div class="feedback-label">📝 핵심 요약</div>
+              <div class="feedback-text" id="ai-summary"></div>
+            </div>
+
+            <div class="feedback-section">
+              <div class="feedback-label">💡 AI 피드백</div>
+              <div class="feedback-text" id="ai-feedback"></div>
+            </div>
+
+            <div class="feedback-section">
+              <div class="feedback-label">📚 예상 시험 문제</div>
+              <div id="ai-quizzes"></div>
+            </div>
+
+            <div class="feedback-section">
+              <div class="feedback-label">🎯 내일 추천 학습</div>
+              <div class="feedback-text" id="ai-next"></div>
+            </div>
+
+            <!-- TTS 바 -->
+            <div class="tts-bar">
+              <span>🔊 AI 요약 음성으로 듣기</span>
+              <button class="btn-tts" id="tts-btn" onclick="toggleTTS()">
+                ▶ 재생
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 학습 히스토리 -->
+      <div class="page" id="page-history">
+        <div class="page-header">
+          <h2>학습 히스토리</h2>
+          <p>지금까지의 공부 기록을 확인하세요</p>
+        </div>
+
+        <div class="stats-row" id="stats-row">
+          <div class="stat-card">
+            <div class="stat-label">총 기록 수</div>
+            <div class="stat-value accent" id="stat-total">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">이번 주 공부 일수</div>
+            <div class="stat-value green" id="stat-week">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">가장 많이 공부한 과목</div>
+            <div class="stat-value amber" id="stat-top" style="font-size:16px; padding-top: 6px;">-</div>
+          </div>
+        </div>
+
+        <div class="log-list" id="log-list">
+          <div class="empty-state">
+            <div class="emoji">📖</div>
+            <p>아직 작성된 일기가 없어요.<br>첫 번째 학습 일기를 작성해보세요!</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 설정 -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <h2>설정</h2>
+          <p>API 키 및 앱 설정을 관리합니다</p>
+        </div>
+
+        <div class="settings-section">
+          <h3>AI 설정</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h4>Anthropic API 키</h4>
+              <p>AI 피드백 생성에 사용됩니다</p>
+            </div>
+            <input type="password" class="setting-input" id="anthropic-key" placeholder="sk-ant-..." />
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>Firebase 설정</h3>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h4>API Key</h4>
+            </div>
+            <input type="text" class="setting-input" id="fb-api-key" placeholder="AIzaSy..." />
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h4>Auth Domain</h4>
+            </div>
+            <input type="text" class="setting-input" id="fb-auth-domain" placeholder="your-app.firebaseapp.com" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h4>Project ID</h4>
+            </div>
+            <input type="text" class="setting-input" id="fb-project-id" placeholder="your-project-id" />
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <h4>App ID</h4>
+            </div>
+            <input type="text" class="setting-input" id="fb-app-id" placeholder="1:123456:web:abc..." />
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 0.75rem;">
+          <button class="btn btn-save" onclick="saveSettings()">💾 설정 저장</button>
+          <button class="btn btn-ghost" onclick="initFirebase()" style="font-size:14px;">🔄 Firebase 재연결</button>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- 상세 모달 -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-subject">-</h3>
+      <button class="btn-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-meta" id="modal-meta"></div>
+    <div class="modal-body-text" id="modal-content"></div>
+    <div id="modal-feedback-section" style="display:none">
+      <div class="modal-divider"></div>
+      <div class="feedback-section">
+        <div class="feedback-label">📝 AI 요약</div>
+        <div class="feedback-text" id="modal-summary"></div>
+      </div>
+      <div class="feedback-section">
+        <div class="feedback-label">💡 피드백</div>
+        <div class="feedback-text" id="modal-feedback-text"></div>
+      </div>
+      <div class="feedback-section">
+        <div class="feedback-label">🎯 다음 추천</div>
+        <div class="feedback-text" id="modal-next"></div>
+      </div>
+      <div class="tts-bar" style="margin-top: 0.75rem;">
+        <span>🔊 AI 요약 음성으로 듣기</span>
+        <button class="btn-tts" id="modal-tts-btn" onclick="toggleModalTTS()">▶ 재생</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── 설정 저장/불러오기 ──
+function loadSettings() {
+  return {
+    anthropicKey: localStorage.getItem('anthropicKey') || '',
+    fbApiKey: localStorage.getItem('fbApiKey') || '',
+    fbAuthDomain: localStorage.getItem('fbAuthDomain') || '',
+    fbProjectId: localStorage.getItem('fbProjectId') || '',
+    fbAppId: localStorage.getItem('fbAppId') || '',
+  };
+}
+
+function saveSettings() {
+  const s = loadSettings();
+  s.anthropicKey = document.getElementById('anthropic-key').value.trim();
+  s.fbApiKey = document.getElementById('fb-api-key').value.trim();
+  s.fbAuthDomain = document.getElementById('fb-auth-domain').value.trim();
+  s.fbProjectId = document.getElementById('fb-project-id').value.trim();
+  s.fbAppId = document.getElementById('fb-app-id').value.trim();
+  localStorage.setItem('anthropicKey', s.anthropicKey);
+  localStorage.setItem('fbApiKey', s.fbApiKey);
+  localStorage.setItem('fbAuthDomain', s.fbAuthDomain);
+  localStorage.setItem('fbProjectId', s.fbProjectId);
+  localStorage.setItem('fbAppId', s.fbAppId);
+  showToast('✅ 설정이 저장되었습니다');
+}
+
+function loadSettingsToUI() {
+  const s = loadSettings();
+  document.getElementById('anthropic-key').value = s.anthropicKey;
+  document.getElementById('fb-api-key').value = s.fbApiKey;
+  document.getElementById('fb-auth-domain').value = s.fbAuthDomain;
+  document.getElementById('fb-project-id').value = s.fbProjectId;
+  document.getElementById('fb-app-id').value = s.fbAppId;
+}
+
+// ── Firebase 초기화 ──
+let db = null, auth = null;
+
+function initFirebase() {
+  const s = loadSettings();
+  if (!s.fbApiKey || !s.fbProjectId) {
+    showToast('⚠️ 설정에서 Firebase 정보를 먼저 입력해주세요', true);
+    return false;
+  }
+  try {
+    const existingApp = firebase.apps.length ? firebase.app() : null;
+    if (existingApp) existingApp.delete();
+  } catch(e) {}
+
+  try {
+    firebase.initializeApp({
+      apiKey: s.fbApiKey,
+      authDomain: s.fbAuthDomain,
+      projectId: s.fbProjectId,
+      appId: s.fbAppId,
+    });
+    db = firebase.firestore();
+    auth = firebase.auth();
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('app-screen').style.display = 'block';
+        const initial = (user.displayName || user.email || '?')[0].toUpperCase();
+        document.getElementById('user-avatar').textContent = initial;
+        document.getElementById('user-email-display').textContent = user.email;
+        loadHistory();
+      } else {
+        document.getElementById('auth-screen').style.display = 'flex';
+        document.getElementById('app-screen').style.display = 'none';
+      }
+    });
+    return true;
+  } catch(e) {
+    showToast('❌ Firebase 연결 오류: ' + e.message, true);
+    return false;
+  }
+}
+
+// ── 인증 ──
+function toggleAuthMode(mode) {
+  clearAuthError();
+  document.getElementById('login-form').style.display = mode === 'login' ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = mode === 'signup' ? 'block' : 'none';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearAuthError() {
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+async function loginEmail() {
+  if (!auth) { showAuthError('Firebase 설정을 먼저 완료해주세요 (설정 화면)'); return; }
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  try {
+    await auth.signInWithEmailAndPassword(email, pw);
+  } catch(e) {
+    const msgs = {
+      'auth/user-not-found': '등록되지 않은 이메일입니다',
+      'auth/wrong-password': '비밀번호가 틀렸습니다',
+      'auth/invalid-email': '이메일 형식이 올바르지 않습니다',
+    };
+    showAuthError(msgs[e.code] || e.message);
+  }
+}
+
+async function signupEmail() {
+  if (!auth) { showAuthError('Firebase 설정을 먼저 완료해주세요'); return; }
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const pw = document.getElementById('signup-pw').value;
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pw);
+    if (name) await cred.user.updateProfile({ displayName: name });
+  } catch(e) {
+    const msgs = {
+      'auth/email-already-in-use': '이미 사용 중인 이메일입니다',
+      'auth/weak-password': '비밀번호는 6자 이상이어야 합니다',
+    };
+    showAuthError(msgs[e.code] || e.message);
+  }
+}
+
+async function loginGoogle() {
+  if (!auth) { showAuthError('Firebase 설정을 먼저 완료해주세요'); return; }
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    await auth.signInWithPopup(provider);
+  } catch(e) {
+    showAuthError(e.message);
+  }
+}
+
+async function logout() {
+  if (auth) await auth.signOut();
+}
+
+// ── 페이지 전환 ──
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  if (page === 'history') loadHistory();
+}
+
+// ── 날짜 ──
+function setTodayDate() {
+  const now = new Date();
+  const days = ['일','월','화','수','목','금','토'];
+  document.getElementById('today-date').textContent =
+    `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${days[now.getDay()]})`;
+}
+
+// ── 일기 제출 ──
+async function submitDiary() {
+  const subject = document.getElementById('subject').value.trim();
+  const content = document.getElementById('study-content').value.trim();
+  if (!subject || !content) {
+    showToast('⚠️ 과목과 공부 내용을 입력해주세요', true);
+    return;
+  }
+  if (!auth || !auth.currentUser) {
+    showToast('⚠️ 로그인이 필요합니다', true);
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 저장 중...';
+
+  const feedbackCard = document.getElementById('feedback-card');
+  feedbackCard.style.display = 'block';
+  document.getElementById('feedback-loading').style.display = 'block';
+  document.getElementById('feedback-content').style.display = 'none';
+
+  feedbackCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // AI 피드백 생성
+  const aiResult = await getAIFeedback(subject, content);
+
+  // Firestore 저장
+  const entry = {
+    uid: auth.currentUser.uid,
+    subject,
+    content,
+    studyTime: document.getElementById('study-time').value,
+    mood: document.getElementById('mood').value,
+    understanding: document.getElementById('understanding').value,
+    goalAchievement: document.getElementById('goal-achievement').value,
+    aiSummary: aiResult.summary || '',
+    aiFeedback: aiResult.feedback || '',
+    aiQuizzes: aiResult.quizzes || [],
+    aiNext: aiResult.next || '',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    dateStr: new Date().toISOString().split('T')[0],
+  };
+
+  try {
+    if (db) await db.collection('studylogs').add(entry);
+    showToast('✅ 일기가 저장되었습니다');
+  } catch(e) {
+    showToast('⚠️ 저장 중 오류가 발생했습니다', true);
+  }
+
+  // 피드백 UI 업데이트
+  document.getElementById('feedback-loading').style.display = 'none';
+  document.getElementById('feedback-content').style.display = 'block';
+  document.getElementById('ai-summary').textContent = aiResult.summary || '요약을 생성하지 못했습니다.';
+  document.getElementById('ai-feedback').textContent = aiResult.feedback || '피드백을 생성하지 못했습니다.';
+  document.getElementById('ai-next').textContent = aiResult.next || '';
+
+  const quizContainer = document.getElementById('ai-quizzes');
+  quizContainer.innerHTML = '';
+  (aiResult.quizzes || []).forEach((q, i) => {
+    const div = document.createElement('div');
+    div.className = 'quiz-item';
+    div.textContent = `Q${i+1}. ${q}`;
+    quizContainer.appendChild(div);
+  });
+
+  currentTTSText = aiResult.summary || '';
+  btn.disabled = false;
+  btn.textContent = '🤖 AI 피드백 받기';
+}
+
+// ── AI 피드백 (Anthropic API) ──
+async function getAIFeedback(subject, content) {
+  const { anthropicKey } = loadSettings();
+  if (!anthropicKey) {
+    showToast('⚠️ 설정에서 Anthropic API 키를 입력해주세요', true);
+    return { summary: content.slice(0, 100) + '...', feedback: 'API 키를 설정해주세요.', quizzes: [], next: '' };
+  }
+
+  try {
+    const prompt = `학생이 오늘 ${subject}를 공부했습니다. 다음 내용을 분석해주세요:
+
+---
+${content}
+---
+
+다음 JSON 형식으로만 응답하세요. 다른 텍스트 없이 JSON만:
+{
+  "summary": "핵심 내용 3문장 이내 요약",
+  "feedback": "공부 방법이나 내용에 대한 격려와 구체적인 피드백 2~3문장",
+  "quizzes": ["예상 시험 문제 1", "예상 시험 문제 2", "예상 시험 문제 3"],
+  "next": "내일 이어서 공부하면 좋을 내용 추천 1~2문장"
+}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': anthropicKey, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    const data = await res.json();
+    const text = data.content?.[0]?.text || '{}';
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
+  } catch(e) {
+    return { summary: '요약 생성 실패', feedback: 'AI 연동 오류: ' + e.message, quizzes: [], next: '' };
+  }
+}
+
+// ── TTS ──
+let currentTTSText = '';
+let currentUtterance = null;
+let isSpeaking = false;
+
+function toggleTTS() {
+  const btn = document.getElementById('tts-btn');
+  if (isSpeaking) {
+    window.speechSynthesis.cancel();
+    isSpeaking = false;
+    btn.textContent = '▶ 재생';
+    btn.classList.remove('playing');
+  } else {
+    speakText(currentTTSText, btn);
+  }
+}
+
+let modalTTSText = '';
+let isModalSpeaking = false;
+
+function toggleModalTTS() {
+  const btn = document.getElementById('modal-tts-btn');
+  if (isModalSpeaking) {
+    window.speechSynthesis.cancel();
+    isModalSpeaking = false;
+    btn.textContent = '▶ 재생';
+    btn.classList.remove('playing');
+  } else {
+    speakTextModal(modalTTSText, btn);
+  }
+}
+
+function speakText(text, btn) {
+  if (!text) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ko-KR';
+  utter.rate = 0.95;
+  utter.pitch = 1;
+  utter.onstart = () => {
+    isSpeaking = true;
+    btn.textContent = '⏸ 정지';
+    btn.classList.add('playing');
+  };
+  utter.onend = utter.onerror = () => {
+    isSpeaking = false;
+    btn.textContent = '▶ 재생';
+    btn.classList.remove('playing');
+  };
+  window.speechSynthesis.speak(utter);
+}
+
+function speakTextModal(text, btn) {
+  if (!text) return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'ko-KR';
+  utter.rate = 0.95;
+  utter.onstart = () => {
+    isModalSpeaking = true;
+    btn.textContent = '⏸ 정지';
+    btn.classList.add('playing');
+  };
+  utter.onend = utter.onerror = () => {
+    isModalSpeaking = false;
+    btn.textContent = '▶ 재생';
+    btn.classList.remove('playing');
+  };
+  window.speechSynthesis.speak(utter);
+}
+
+// ── 히스토리 ──
+async function loadHistory() {
+  if (!db || !auth?.currentUser) return;
+  try {
+    const snap = await db.collection('studylogs')
+      .where('uid', '==', auth.currentUser.uid)
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // 통계
+    document.getElementById('stat-total').textContent = logs.length;
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+    const weekLogs = logs.filter(l => l.createdAt?.toDate() > weekAgo);
+    const weekDays = new Set(weekLogs.map(l => l.dateStr)).size;
+    document.getElementById('stat-week').textContent = weekDays;
+    const subjectCount = {};
+    logs.forEach(l => { subjectCount[l.subject] = (subjectCount[l.subject] || 0) + 1; });
+    const topSubject = Object.keys(subjectCount).sort((a,b) => subjectCount[b]-subjectCount[a])[0];
+    document.getElementById('stat-top').textContent = topSubject || '-';
+
+    // 리스트
+    const container = document.getElementById('log-list');
+    if (!logs.length) {
+      container.innerHTML = `<div class="empty-state"><div class="emoji">📖</div><p>아직 작성된 일기가 없어요.<br>첫 번째 학습 일기를 작성해보세요!</p></div>`;
+      return;
+    }
+
+    container.innerHTML = logs.map(log => {
+      const date = log.createdAt?.toDate ? log.createdAt.toDate() : new Date();
+      const dateStr = `${date.getMonth()+1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2,'0')}`;
+      return `
+        <div class="log-card" onclick="openDetail('${log.id}')">
+          <div class="log-card-header">
+            <span class="log-subject">${log.subject}</span>
+            <span class="log-date">${dateStr}</span>
+          </div>
+          <div class="log-preview">${log.content}</div>
+          <div class="log-tags">
+            <span class="tag tag-subject">${log.subject}</span>
+            <span class="tag tag-time">⏱ ${log.studyTime}</span>
+            <span class="tag tag-mood">${log.mood}</span>
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    console.error('히스토리 로드 실패:', e);
+  }
+}
+
+// ── 상세 모달 ──
+let allLogs = {};
+
+async function openDetail(id) {
+  if (!db || !auth?.currentUser) return;
+  try {
+    const doc = await db.collection('studylogs').doc(id).get();
+    if (!doc.exists) return;
+    const log = doc.data();
+
+    document.getElementById('modal-subject').textContent = log.subject;
+
+    const meta = document.getElementById('modal-meta');
+    meta.innerHTML = `
+      <span class="tag tag-time">⏱ ${log.studyTime}</span>
+      <span class="tag tag-mood">${log.mood}</span>
+      <span class="tag tag-subject">📊 ${log.understanding}</span>
+      <span class="tag tag-subject">🎯 ${log.goalAchievement}</span>
+    `;
+
+    document.getElementById('modal-content').textContent = log.content;
+
+    if (log.aiSummary) {
+      document.getElementById('modal-feedback-section').style.display = 'block';
+      document.getElementById('modal-summary').textContent = log.aiSummary;
+      document.getElementById('modal-feedback-text').textContent = log.aiFeedback;
+      document.getElementById('modal-next').textContent = log.aiNext;
+      modalTTSText = log.aiSummary;
+    } else {
+      document.getElementById('modal-feedback-section').style.display = 'none';
+    }
+
+    document.getElementById('detail-modal').classList.add('show');
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+function closeModal() {
+  window.speechSynthesis.cancel();
+  isModalSpeaking = false;
+  document.getElementById('modal-tts-btn').textContent = '▶ 재생';
+  document.getElementById('modal-tts-btn').classList.remove('playing');
+  document.getElementById('detail-modal').classList.remove('show');
+}
+
+// ── 토스트 ──
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = isError ? 'var(--red)' : 'var(--green)';
+  t.style.color = isError ? 'var(--red)' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── 초기화 ──
+document.addEventListener('DOMContentLoaded', () => {
+  setTodayDate();
+  loadSettingsToUI();
+  initFirebase();
+
+  // 모달 외부 클릭 닫기
+  document.getElementById('detail-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+});
+</script>
+</body>
+</html>
